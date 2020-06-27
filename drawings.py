@@ -1,33 +1,18 @@
 from trusspackage.trusses import Geometry, Model
+from trusspackage.templates import det_tower, indet_tower
 import numpy as np
 
-T=Geometry()
+G=indet_tower(16,4)
+S=Model(G)
 
-T.addnode([0,0])
-T.addnode([1,0])
-for i in range(5):
-    T.addnode([0,i+1]) # nodeindex 2(i+1)
-    T.addnode([1,i+1]) # nodeindex 2(i+2)
-    T.addmember(2*i  ,2*i+2)
-    T.addmember(2*i+1,2*i+3)
-    T.addmember(2*i  ,2*i+3)
-    #T.addmember(2*i+1  ,2*i+2)
-    T.addmember(2*i+2,2*i+3)
-
-S=Model(T)
-
-b=np.ones(S.m)*100
+b=np.ones(S.m)
+d=[None]*S.k
 f=np.zeros(S.k)
 
-d=[None]*S.k
-d[0]=0
-d[1]=0
-d[2]=0
-d[3]=0
-d[22]=0.5
-d[18]=0.5
+for i in range(4):
+    d[2*i+1]=0
+    d[2*i]=0
+    f[S.k-2*i-1]=1
 
 f, d = S.solve_for(b,f,d)
-print(d)
-
 S.drawdisp(d)
