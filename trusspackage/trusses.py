@@ -126,23 +126,24 @@ class Model:
         # deal with displacement BCs
         rows_to_go=[]
         rows_to_stay=[]
+        dd=d.copy()
         for i, val in enumerate(d):
             if val is not None:
                 rows_to_go.append(i)
             else:
                 rows_to_stay.append(i)
-                d[i]=0
+                dd[i]=0
 
         # displacement BCs
         K=self.makeK(b)
-        fprime=f-K.dot(d)
+        fprime=f-K.dot(dd)
 
         Kprime=np.delete(K, rows_to_go,0)
         Kprime=np.delete(Kprime, rows_to_go,1)
         fprime=np.delete(fprime, rows_to_go)
         dprime = list(np.linalg.solve(Kprime, fprime))
 
-        dout=d.copy()
+        dout=dd.copy()
         for i in range(len(dprime)):
             dout[rows_to_stay[i]]=dprime[i]
         dout=np.array(dout)
