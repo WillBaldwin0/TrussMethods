@@ -1,24 +1,25 @@
-from trusspackage.trusses import Model
-from trusspackage.templates import det_tower
+from trusspackage.trusses import Model, Geometry
 import numpy as np
 import matplotlib.pyplot as plt
 from mpl_toolkits.mplot3d import Axes3D
 
-# make a simple truss
-G=det_tower(2,2)
-S=Model(G)
-G.draw()
+G=Geometry()
+G.addnode([0,0])
 
-# set BC's. Fix the two lower nodes, and apply a unit force to the right on the upper right node.
-d = [None]*S.k
-d[:4] = [0]*4
+for i in range(3):
+    G.addnode([i+1,0])
+    G.addmember(i, i+1)
+S=Model(G)
+
+# can use as 1d if we just fix all the vertical degrees of freedom.
+d = [0,0,None,0,None,0,None,0]
 f = np.zeros(S.k)
-f[4] = 1
+f[6]=1
 
 # create a list of b-vectors that are all in the plane spanned by e1 and e2
-epsilon = 0.01
-e1 = np.array([1,epsilon,1,1])/epsilon
-e2 = np.array([1,1,epsilon,1])/epsilon
+epsilon = 0.001
+e1 = np.array([1,epsilon,1])/epsilon
+e2 = np.array([1,1,epsilon])/epsilon
 
 num = 175       # O(num^2) vectors
 coefs = np.linspace(-1,1,num)
@@ -34,7 +35,7 @@ for i in range(num):
 
 # map them through the structure K^{-1} f. Also make f_sig and a measured value drt.
 f_sig = lambda err, sig: np.exp(-sig**(-2) * err.dot(err) / 2) / (2*np.pi*sig**2)**(err.shape[0]/2)
-drt = np.array([0.11,0.02,-0.073])
+drt = np.array([0.01,0.04,0.12])
 
 dr_list = []
 val_list = []
@@ -46,7 +47,7 @@ for b in b_list:
     f_, d_ = S.solve_for(b,f,d)
     # d and d_ include the zero boundary conditions as the first 4 elements, so get rid of them
     # Also remove d[5], this is 'P'. Don't need to do this other than for visualisation.
-    dr = np.delete(d_, [0,1,2,3,5])
+    dr = np.delete(d_, [0,1,3,5,7])
     x = dr-drt
     val = f_sig(x,0.03)
     dr_list.append(dr)
@@ -84,9 +85,7 @@ y = coef_list[:,1]
 # easier to just scatter coloured dots because of a possibly incomplete grid of data
 plt.scatter(x,y,c=val_list)
 plt.show()
-
-
-
+f[8] = 1
 
 
 

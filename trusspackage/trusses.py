@@ -1,11 +1,13 @@
 import numpy as np
 import matplotlib.pyplot as plt
 
+
 class Node:
     def __init__(self, pos, index):
         self.index=index
         self.pos = np.asarray(pos)
         self.disp_pos = np.asarray(pos)
+
 
 class Member:
     def __init__(self, nodeA, nodeB):
@@ -17,6 +19,7 @@ class Member:
         sin=(nodeA.pos[1]-nodeB.pos[1])/l
         v=np.array([cos,sin,-cos,-sin])
         self.B=np.outer(v,v)
+
 
 class Geometry:
     def __init__(self):
@@ -51,7 +54,7 @@ class Geometry:
 
     """ ============== drawing ================ """
 
-    def draw(self, displacements=np.asarray([])):
+    def draw(self, displacements=np.asarray([]), hold=False):
         # draw structure
         if displacements.size==0:
             displacements=np.zeros(2*len(self.nodes))
@@ -83,36 +86,34 @@ class Geometry:
         plt.xlim((xmin-0.5, xmax+0.5))
         plt.ylim((ymin-0.5, ymax+0.5))
         plt.legend(bbox_to_anchor= (1.02, 0., 1., .102), loc='lower left',ncol=2, mode="expand", borderaxespad=0.)
+        if not hold:
+            plt.show()
+
+    def plot_vector(self, vector):
+        self.draw(hold=True)
+        XY=np.asarray([node.pos for node in self.nodes])
+        UV=np.reshape(vector, np.array([vector.shape[0]/2,2]).astype(int))
+
+        plt.quiver(XY[:,0],XY[:,1], UV[:,0], UV[:,1], scale=1, scale_units='xy')
         plt.show()
-
-
-
-
-
-
-
-
-
 
 
 class Model:
     def __init__(self, geom):
         # get geometry and make a list of the B's
         self.geom = geom
-        #self.zero_disp_constraints = zero_disp_constraints
-        #self.remove_indices = [ constr[0]*2+constr[1] for constr in self.zero_disp_constraints ]
+        # self.zero_disp_constraints = zero_disp_constraints
+        # self.remove_indices = [ constr[0]*2+constr[1] for constr in self.zero_disp_constraints ]
 
         # Bs and Ks will be kxk with k 2n-len(zero_disp_constraints)
         self.Bs=[]
         self.n=len(geom.nodes)
-        self.k=2*self.n #-len(zero_disp_constraints)
+        self.k=2*self.n # -len(zero_disp_constraints)
         self.m=geom.m
 
         for member in self.geom.members:
             B = geom.mapB(member)
             self.Bs.append(B)
-            #Bprime=np.delete(B, self.remove_indices, 0)
-            #self.Bs.append(np.delete(Bprime, self.remove_indices, 1))
 
     def makeK(self,b):
         assert(len(b)==self.m)
