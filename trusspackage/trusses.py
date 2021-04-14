@@ -144,12 +144,39 @@ class Model:
         fprime=np.delete(fprime, rows_to_go)
         dprime = list(np.linalg.solve(Kprime, fprime))
 
+
         dout=dd.copy()
         for i in range(len(dprime)):
             dout[rows_to_stay[i]]=dprime[i]
         dout=np.array(dout)
 
         return K.dot(dout), dout
+
+    def invert_determinate(self, d_in, f_in):
+        # make V matrix
+        # DONT USE THIS
+        d=d_in #np.delete(d_in, [0,1,3,5,7])
+        f=np.delete(f_in, [0,1,3,5,7])
+        V=[]
+        for B_matrix in self.Bs:
+            B = np.delete(B_matrix, [0,1,3,5,7], axis=0)
+            B = np.delete(B, [0,1,3,5,7], axis=1)
+            lam, vecs = np.linalg.eig(B)
+            vecs=vecs.T
+            for j in range(2):
+                if abs(lam[j]) > 0.0000001:
+                    V.append(vecs[j])
+                    break
+        V[2]=V[2]*np.sqrt(2)
+        V[1]=V[1]*np.sqrt(2)
+        V=np.asarray(V).T
+        C=np.linalg.inv(V).T
+
+        f_i = np.dot(C.T, f)
+        gamma_i = np.dot(V.T, d)
+        bb=np.divide(f_i, gamma_i)
+
+        return bb
 
     def drawdisp(self, d):
         self.geom.draw(d)
