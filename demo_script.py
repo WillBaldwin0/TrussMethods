@@ -9,12 +9,12 @@ G.addnode([1, 0]) # node index 1
 G.addnode([0, 1]) # ...
 G.addnode([1, 1])
 
-G.addmember(0, 2)
+G.addmember(0, 2) # member index 0
 G.addmember(1, 2)
 G.addmember(1, 3)
 G.addmember(2, 3)
 
-# show what it looks like
+# show what it looks like, and to see the node and member indexing scheme.
 G.draw()
 
 # make calculator
