@@ -2,10 +2,11 @@ from trusspackage.trusses import Model, Geometry
 import numpy as np
 import matplotlib.pyplot as plt
 import matplotlib.tri as mtri
-from mpl_toolkits.mplot3d import Axes3D
+from mpl_toolkits.mplot3d import Axes3D # needed
 
-######################## System setup ############################################
+" ============================= make the truss and decide BC's ============================ "
 
+# 4 nodes in a line
 G = Geometry()
 G.addnode([0, 0])
 for i in range(3):
@@ -13,32 +14,35 @@ for i in range(3):
     G.addmember(i, i + 1)
 S = Model(G)
 
+# show what it looks like
+# G.draw()
+
+# make 1d by fixing the y displacement of all nodes to be 0
 d_BC = [0, 0, None, 0, None, 0, None, 0]
 f = np.array([0, 0, 0, 0, 1, 0, 0.05, 0])
-dt = np.array([0.1, 0.2, 0.246])
-
-likelihood_variance = 0.002
 
 
-def f_sig(err, sig):
-    return np.exp(-sig ** (-2) * err.dot(err) / 2) / (2 * np.pi * sig ** 2) ** (err.shape[0] / 2)
+" ============================= Define Omega ============================ "
 
-
-######################################## Make Omega ############################################
-# there are many descriptions so we can do different visualisations
-
-# define Omega through vectors and coefficients - these are K_n and p_n
+# define Omega through vectors and coefficients
+# e1 and e2 are the basis vectors of the model space.
+# coeficients of these are the parameters.
+# in this case model is linear variation. parameters (p) are stiffness of the first and last member (/100)
+# parameter vectors are 2d.
+# span of e1, e2 is a subspace of the three-dimensional space of  stiffness (b) vectors.
 epsilon = 0.01
 e1 = np.array([1, 0.5, 0]) / epsilon
 e2 = np.array([0, 0.5, 1]) / epsilon
 
-# make a set of uniformly spaced bs that lie on the plane.
-Onum = 200
+# make a set of stiffness vectors (b) that lie on the plane.
+# in this case we let all p vary between 0 and 0.6, arbitrary decision compatible with the e1, e2 and measured dt vector.
+Onum = 150
 max_p_i = 0.6
-p_range = np.linspace(-max_p_i, max_p_i, Onum)
+p_range = np.linspace(0.001, max_p_i, Onum)
 p_list = []
 b_list = []
 
+# make a list of the points in p-space and b-space.
 for i in range(Onum):
     for j in range(Onum):
         b = p_range[i] * e1 + p_range[j] * e2
@@ -49,14 +53,31 @@ for i in range(Onum):
 b_arr = np.asarray(b_list)
 p_arr = np.asarray(p_list)
 
-################################### Image of Omega ###########################
+" ============================= Image of Omega ============================ "
+
+# collect lost of other data at the same time.
+# make a list of d's by computing the displacement for every p in Omega (every b  phi(Omega))
+# let x = dt - d be the difference between the predicted d at p, alpha(p), and the measured d denoted dt.
+# from now on we only care about the 'free' degrees of freedom which are 2,4 and 6.
+# so d now refers to the 3d vector which we care about.
+# let val bu the likelihood of p which depends only on x.
+
+# for making plots, choose a 'measurement' dt, and setup a likelihood function to use.
+dt = np.array([0.1,0.17,0.23])
+
+# for the likelihood.
+likelihood_variance = 0.01
+def f_sig(err, sig):
+    return np.exp(-sig ** (-2) * err.dot(err) / 2) / (2 * np.pi * sig ** 2) ** (err.shape[0] / 2)
 
 x_list = []
 d_list = []
 val_list = []
 
+# go through the b's and compute d, x, val
 for b in b_list:
     f_, d_ = S.solve_for(b, f, d_BC)
+    # extract the 3 degrees of freedom we care about.
     d = np.delete(d_, [0, 1, 3, 5, 7])
     d_list.append(d)
     x_list.append(d - dt)
@@ -66,8 +87,9 @@ d_arr = np.asarray(d_list)
 x_arr = np.asarray(x_list)
 val_arr = np.asarray(val_list)
 
-# trim all lists down for graphing with some mask or set of masks:
-remove_points = [index for index, d in enumerate(d_arr) if np.linalg.norm(d) > 2 * np.linalg.norm(dt)]
+# trim all lists down for graphing with some mask
+# we end up plotting a subset of alpha(omega)
+remove_points = [index for index, d in enumerate(d_arr) if (np.linalg.norm(d) > 1.4 * np.linalg.norm(dt) or np.linalg.norm(d) < 0.5 * np.linalg.norm(dt))]
 print(d_arr.shape[0] - len(remove_points))
 d_arr = np.delete(d_arr, remove_points, axis=0)
 x_arr = np.delete(x_arr, remove_points, axis=0)
@@ -75,149 +97,16 @@ p_arr = np.delete(p_arr, remove_points, axis=0)
 b_arr = np.delete(b_arr, remove_points, axis=0)
 val_arr = np.delete(val_arr, remove_points)
 
-########################### visulisation ##################################
+" ============================= Visualisation ============================ "
 
-# create a triangulation
-tris = mtri.Triangulation(p_arr[:, 0], p_arr[:, 1]).triangles
-
-# plot a surface to show the curvature and the likelihoods with a sooth surface
+# plot with just scattered points
 if True:
     fig = plt.figure()
     ax = fig.add_subplot(111, projection='3d')
-
-    ax.plot_trisurf(d_arr[:, 0], d_arr[:, 1], d_arr[:, 2], triangles=tris)
-    ax.scatter(dt[0], dt[1], dt[2], c='r')
-
-    # for axis limits
-    max_disp = max([max(d) for d in d_arr])
-    ax.set_xlim3d(0, max_disp)
-    ax.set_ylim3d(0, max_disp)
-    ax.set_zlim3d(0, max_disp)
-    ax.set_xlabel('node 1')
-    ax.set_ylabel('node 2')
-    ax.set_zlabel('node 3')
+    ax.scatter(d_arr[:, 0], d_arr[:, 1], d_arr[:, 2], c=val_arr)
+    ax.scatter(dt[0], dt[1], dt[2], c='r', s=30, alpha=1)
+    ax.set_xlabel('d.o.f. 2')
+    ax.set_ylabel('d.o.f. 4')
+    ax.set_zlabel('d.o.f. 6')
     plt.show()
 
-# plot individual wires corresponding to constant p_n
-if False:
-    fig = plt.figure()
-    ax = fig.add_subplot(111, projection='3d')
-
-    # plot the individual p1_wires
-    p1_wires = []
-    current_p = -100
-    for index, p in enumerate(p_arr):
-        if p[0] > current_p + 0.000001:
-            current_p = p[0]
-            p1_wires.append([d_arr[index]])
-        else:
-            p1_wires[-1].append(d_arr[index])
-
-    for lst in p1_wires:
-        arr = np.asarray(lst)
-        ax.plot(arr[:, 0], arr[:, 1], arr[:, 2])
-
-    # plot the individual p2_wires
-    p2_wires = []
-    current_p = -100
-    for index, p in enumerate(p_arr):
-        if p[1] > current_p + 0.000001:
-            current_p = p[1]
-            p2_wires.append([d_arr[index]])
-        else:
-            p2_wires[-1].append(d_arr[index])
-
-    for lst in p2_wires:
-        arr = np.asarray(lst)
-        ax.plot(arr[:, 0], arr[:, 1], arr[:, 2])
-
-    # measurment
-    ax.scatter(dt[0], dt[1], dt[2], c='r')
-
-    # for axis limits
-    max_disp = max([max(d) for d in d_arr])
-    ax.set_xlim3d(0, max_disp)
-    ax.set_ylim3d(0, max_disp)
-    ax.set_zlim3d(0, max_disp)
-    ax.set_xlabel('node 1')
-    ax.set_ylabel('node 2')
-    ax.set_zlabel('node 3')
-    plt.show()
-
-# other one
-P = np.array([[0, 1, 0], [1, 0, 1]])
-
-if True:
-    dr_arr = np.asarray(dr_list)
-    vr_list = P.dot(dr_arr.T)
-    print(vr_list.shape)
-    plt.scatter(vr_list[0, :], vr_list[1, :], s=0.1)
-    plt.show()
-
-if True:
-    used_bs = np.asarray(used_bs)
-    x = used_bs[:, 0]
-    y = used_bs[:, 1]
-    z = used_bs[:, 2]
-
-    fig = plt.figure()
-    ax = fig.add_subplot(111, projection='3d')
-    ax.scatter(x, y, z, c=val_list_3d)
-    ax.plot([b_true[0]], [b_true[1]], [b_true[2]], 'ro',
-            markersize=3)  # plot the drt point too. s=100,, depthshade=False
-
-    # for scaling
-    a = max(used_bs[0])
-    ax.scatter([0, a], [0, a], [0, a], s=0.1)
-
-    ax.set_xlabel('d.o.f. 4')
-    ax.set_ylabel('d.o.f. 6')
-    ax.set_zlabel('d.o.f. 7')
-    plt.show()
-
-if False:
-    b_list = np.asarray(b_list)
-    x = b_list[:, 0]
-    y = b_list[:, 1]
-    z = b_list[:, 2]
-
-    fig = plt.figure()
-    ax = fig.add_subplot(111, projection='3d')
-    ax.scatter(x, y, z)
-    """ax.plot([b_true[0]], [b_true[1]], [b_true[2]], 'ro', markersize =3) # plot the drt point too. s=100,, depthshade=False
-
-    # for scaling
-    a=max(used_bs[0])
-    ax.scatter([0,a],[0,a],[0,a],s=0.1)
-
-    ax.set_xlabel('d.o.f. 4')
-    ax.set_ylabel('d.o.f. 6')
-    ax.set_zlabel('d.o.f. 7')"""
-    plt.show()
-
-# plot the likelihoods over the b plane
-print(np.array(coef_list).shape)
-# coef_list = np.delete(np.array(coef_list), mess, axis=0)
-coef_list = np.array(coef_list)
-x = coef_list[:, 0]
-y = coef_list[:, 1]
-
-print(coefs[138] * e1 + coefs[110] * e2)
-
-# easier to just scatter coloured dots because of a possibly incomplete grid of data
-plt.scatter(x, y, c=val_list)
-plt.show()
-
-# calculate the mean b...
-# add all te vectors and divite by the number of them...
-
-number = sum(val_list_3d)
-print(number)
-
-used_bsT = used_bs.T
-mean = used_bsT.dot(val_list_3d) / number
-print(mean)
-
-print()
-print(np.linalg.norm(b_true - best_b))
-print(np.linalg.norm(b_true - mean))
