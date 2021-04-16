@@ -20,7 +20,7 @@ G.draw()
 # make calculator
 S = Model(G)
 
-# bounary conditions
+# boundary conditions
 # fix the bottom two nodes, let the top two be free
 d_BC = [0, 0, 0, 0, None, None, None, None]
 
