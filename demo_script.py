@@ -1,4 +1,4 @@
-from trusspackage.trusses2d2 import Model, Geometry
+from trusspackage.trusses import Model, Geometry
 import numpy as np
 
 # make truss: 4 nodes in a line
